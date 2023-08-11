@@ -1,78 +1,79 @@
 /*global chrome*/
-import React , { useState } from 'react';
+import React,{useState}  from 'react';
 const App = () => {
-    const [inputValue, setInputValue] = useState("click button");
-  const handleSendMessage = () => {
-    // Make a simple request:
-    const islogin="yes";
-    //const url='http://ip.jsontest.com/';
-    chrome.runtime.sendMessage("cihfhmnpbjnfalgmekgmkajnpfgajkeo", {login:islogin},
-    function(response){
-      setInputValue(response.data);
-      alert("see console bro");
-    }
-    );
-  };
-  // const handleSendMessages = async() => {
+    //const [inputValue, setInputValue] = useState("click button");
+    const [responses, setResponses] = useState([]);
+  // const handleSendMessage = () => {
   //   // Make a simple request:
-  //   var time;
-  //   var second;
-  //   const islogin="yes";
+  //   // const islogin="yes";
   //   //const url='http://ip.jsontest.com/';
-  //   await chrome.runtime.sendMessage("cihfhmnpbjnfalgmekgmkajnpfgajkeo", {login:islogin,number:"one"},
+  //   chrome.runtime.sendMessage("ijcednfdjlpgfdpokonoikmclmombnlm", "miheer",
   //   function(response){
-  //     setInputValue(response.data);
-  //      time=new Date();
-  //      second=time.getSeconds();
-  //     alert(`see console bro from double request,${second}`);
-  //   }
-  //   );
-  //   await chrome.runtime.sendMessage("cihfhmnpbjnfalgmekgmkajnpfgajkeo", {login:islogin,number:"two"},
-  //   function(response){
-  //     setInputValue(response.data);
-  //     time=new Date();
-  //     second=time.getSeconds();
-  //     alert(`see console bro from double request,${second}`);
+  //     //setInputValue(response.data);
+  //     console.log("ek don tin");
+  //     console.log(typeof response)
+  //    alert(response);
   //   }
   //   );
   // };
+  //-----------------------------------------------------------
+  
+  //   const handleSendMessages = async() => {
+  //     // Make a simple request:
+  //     for(let i=1;i<20;i++){
+  //     const islogin="yes";
+  //     //const url='http://ip.jsontest.com/';
+  //     await chrome.runtime.sendMessage("cihfhmnpbjnfalgmekgmkajnpfgajkeo", {login:islogin,number:toString(i)},
+  //     function(response){
+  //       setInputValue(response.data);
+  //     }
+  //     );
+  //   };
+  // }
+  
 
-
+//------------------------------------------------------------
 
   const makeChromeRuntimeSendMessage = (message) => {
     return new Promise((resolve) => {
-      chrome.runtime.sendMessage("cihfhmnpbjnfalgmekgmkajnpfgajkeo", message, function (response) {
-        resolve(response.data);
+      chrome.runtime.sendMessage("ijcednfdjlpgfdpokonoikmclmombnlm", message, function (response) {
+        resolve(response);
       });
     });
   };
   
   const handleSendMessages = async () => {
-    const islogin = "yes";
+    const newResponses = [];
+    for(let i=0;i<3;i++){
+    var response1;
+    let yesorno="yes";
+    let msg={link:"http://ip.jsontest.com/",islogin:yesorno}
     try {
-      const response1 = await makeChromeRuntimeSendMessage({ login: islogin, number: "request one" });
-      setInputValue(response1);
-      const time1 = new Date();
-      const second1 = time1.getSeconds();
-      alert(`First request done, ${second1}`);
-  
-      const response2 = await makeChromeRuntimeSendMessage({ login: islogin, number: "request two" });
-      setInputValue(response2);
-      const time2 = new Date();
-      const second2 = time2.getSeconds();
-      alert(`Second request done, ${second2}`);
-    } catch (error) {
+      response1 = await makeChromeRuntimeSendMessage(msg);
+      newResponses.push(response1);
+      //setInputValue(response1);
+      setResponses([...responses, response1]);
+    }catch(error){
       console.error("Error occurred:", error);
     }
+    setResponses([...responses, ...newResponses]);
+  }
   };
-  
- 
+  //--------------------------------------------------------------
   return (
     <div>
       <h1>click below buttonnnnnnn</h1>
-      <h1>{inputValue}</h1>
-      <button onClick={handleSendMessage}>click for one request</button>
-      <button onClick={handleSendMessages}>click for two request</button>
+      {/* <h1>{inputValue}</h1> */}
+      <div>
+        {responses.map((response, index) => (
+          <div key={index}>
+            <p>{response}</p>
+            <h1>----|||||----</h1>
+          </div>
+        ))}
+      </div>
+      {/* <button onClick={handleSendMessage}>click for one request</button> */}
+      <button onClick={handleSendMessages}>click for n num of requests</button>
     </div>
   );
 };

@@ -1,96 +1,95 @@
 import reloadOnUpdate from "virtual:reload-on-update-in-background-script";
 reloadOnUpdate("pages/background");
-console.log("background loaded ");
-//----------------------------------------------------------->
-
+console.log("background@12345678 ");
 import { createMachine, interpret } from 'xstate';
 import { fromEvent } from 'rxjs';
- function fetchdata() {
-  return new Promise(async(resolve)=>{
-    await fetch('http://ip.jsontest.com/', {
-      method: 'GET',
-    }).then(res => {
-     
-      return res.json();
-    }).then(res => {
-      resolve(res);
-    }).catch((err)=>{
-      console.log("error bro",err);
-    })     
-  })
+import { from } from "rxjs";
+import { Observable } from 'rxjs';
+import { concatMap } from 'rxjs/operators';
+import { Subject } from 'rxjs';
+import { tap } from 'rxjs/operators';
+import { mapValues } from "xstate/lib/utils";
+interface ExternalMessage{
+  message: any;
+  sender: any;
+  sendResponse: any;
 }
 const serviceWorkerMachine = createMachine({
   id: 'serviceWorker',
   initial: 'registered',
   context: {
-    inputValue: 'no ip',
+    externalMessage: null as ExternalMessage | null,
   },
   states: {
     registered: {
       on: {
         INSTALL: 'installed',
-        
       },
     },
     installed: {
       on: {
-        ACTIVATE: 'activated',
-        LOGIN:'login'
+        ACTIVATE:'activated'
       },
     },
     activated: {
       on: {
-        LOGIN: 'login',
+        EXTERNAL_MESSAGE: {
+          target: 'processing',
+        },
       },
     },
-    login: {
-     on:{
-      DATA:'data',
-     }
-    },
-    data:{
-      invoke: {
-        src: 'fetchdata',
-        onDone: {
-          target:'activated',
-          actions: 'setInputValue',
+    processing: {
+      entry: 'handleExternalMessage',
+      on: {
+        MESSAGE_PROCESSED: {
+          target: 'activated',
         },
-        onError: 'activated',
       },
-      on:{
-        TERMINATE:'termination',
-       }
-        },
-    termination:{
-
-      }
+    },
      },
    },
-   
    {
-    actions:{ 
-      setInputValue:(context,event)=>{
-        console.log("data fetched")
-        context.inputValue=event.data.ip;
-      }
+    actions: {
+      handleExternalMessage: (context, event) => {
+        if (event.type === 'EXTERNAL_MESSAGE') {
+          const { message, sender, sendResponse } = event;          
+          console.log('Received external message:', message);
+          async function fetchdata() {
+            try {
+              const response = await fetch(message.link, {
+                method: 'GET',
+              });
+              
+              const data = await response.json();
+              return data;
+            } catch (error) {
+              console.log("error bro", error);
+              throw error;
+            }
+          }
+          async function fetchDataAndSendResponse() {
+            try {
+              const ip1 = await fetchdata();
+              sendResponse(`ok${ip1.ip}`);
+              serviceWorkerService.send('MESSAGE_PROCESSED');
+            } catch (error) {
+              console.log("error bro", error);
+            }
+          }
+          fetchDataAndSendResponse();
+        }
+      },
     },
-    services:{
-      //servicse begin
-      fetchdata:fetchdata,
-      //service end
-     }
-   }
+  }
 );
-// Usage
+
 const serviceWorkerService = interpret(serviceWorkerMachine).start();
  serviceWorkerService.onTransition((state) => {
     console.log('Current State from xstate:', state.value);
-    if(state.value==='termination'){
-      console.log("inside termination state")
-     
+    if(serviceWorkerService.state.matches('error')){
+      console.log("error occured bro for the request.")
     }
    });
-// Use RxJS fromEvent to create observables for the 'install', 'activate', and 'message' events
 fromEvent(self, 'install').subscribe((event) => {
   //console.log(`service worker state now:---> ${event.type}`);
   serviceWorkerService.send('INSTALL');
@@ -100,23 +99,26 @@ fromEvent(self, 'activate').subscribe((event) => {
   serviceWorkerService.send('ACTIVATE');
 });
 
-//------------------------------------------------------->
-chrome.runtime.onMessageExternal.addListener(
-  function(request, sender, sendResponse){
-        serviceWorkerService.send('LOGIN');      
-      if(request.login==="yes"){
-        console.log(request.number)
-         serviceWorkerService.send('DATA');    
-         sendResponse({data:"ok data sent see console.log of background"});
-      }
-      else{
-        sendResponse({data:"sorry first login"});
-      }    
+
+const externalMessageSubject = new Subject<ExternalMessage>();
+const service = interpret(serviceWorkerMachine).start();
+externalMessageSubject.subscribe(({ message, sender, sendResponse }) => {
+  serviceWorkerService.send({ type: 'EXTERNAL_MESSAGE', message, sender, sendResponse });
+});
+chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
+  externalMessageSubject.next({
+    message,
+    sender,
+    sendResponse,
+  });
 });
 
-chrome.runtime.onSuspend.addListener(async () => {
-  console.log("terminated")
-});
+
+
+
+
+
+
 
 
 
